@@ -1,0 +1,8 @@
+{
+  "name": "Player Dealership + Loaner System for CareerMP",
+  "author": "Codex / bruni workspace",
+  "version": "0.2.0-beta.1",
+  "description": "Player-run dealership, timed temporary keys, and party tools for CareerMP servers.",
+  "type": "mod",
+  "repository": "https://github.com/ChiarelloB/Player-Dealership-Loaner-System-for-CareerMP"
+}

@@ -1,0 +1,19 @@
+{
+  "domElement": "<careermpparty></careermpparty>",
+  "name": "CareerMP Network",
+  "types": [
+    "ui.apps.categories.multiplayer"
+  ],
+  "css": {
+    "left": "0px",
+    "right": "",
+    "top": "260px",
+    "min-width": "448px",
+    "width": "448px",
+    "height": "560px"
+  },
+  "description": "Dealership, loaner, and party controls for CareerMP.",
+  "author": "Codex / bruni workspace",
+  "version": "0.2.0-beta.1",
+  "directive": "careermpparty"
+}

@@ -1,0 +1,2 @@
+setExtensionUnloadMode('careerMPPartySharedVehicles', 'manual')
+loadManualUnloadExtensions()

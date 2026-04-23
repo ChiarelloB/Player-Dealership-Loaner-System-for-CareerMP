@@ -1,0 +1,352 @@
+<div ng-controller="CareerMPPartyController" class="careermp-party-root is-left-anchored">
+	<link rel="stylesheet" type="text/css" href="/ui/modules/apps/CareerMP-Party/app.css">
+	<div id="party-main-container">
+		<div id="party-container">
+			<section id="party-panel" class="careermp-party-app">
+				<header class="careermp-party-header">
+					<div class="careermp-party-brand">
+						<p class="careermp-party-brand-line">Career<span class="careermp-party-brand-mark">MP</span> Network</p>
+					</div>
+				</header>
+
+				<section class="careermp-party-summary">
+					<div class="careermp-party-summary-main">
+						<div class="careermp-party-summary-title">Status</div>
+						<div class="careermp-party-summary-value" ng-if="party">{{ party.ownerName }}'s Party</div>
+						<div class="careermp-party-summary-value" ng-if="!party">No active party</div>
+					</div>
+					<div class="careermp-party-meta">
+						<span>{{ onlinePlayers.length }} online</span>
+						<span ng-if="party">{{ party.memberCount }} members</span>
+						<span ng-if="invites.length">{{ invites.length }} invite<span ng-if="invites.length !== 1">s</span></span>
+						<span ng-if="sharedVehicles.partyTotal">{{ sharedVehicles.partyTotal }} shared</span>
+						<span ng-if="marketplace.listingCount">{{ marketplace.listingCount }} listed</span>
+						<span ng-if="loaners.total">{{ loaners.total }} loaned</span>
+					</div>
+					<div class="careermp-party-summary-actions">
+						<button type="button" ng-if="!party" ng-click="createParty()">Create Party</button>
+						<button type="button" class="danger" ng-if="party" ng-click="leaveParty()">
+							{{ party.isOwner ? 'Disband Party' : 'Leave Party' }}
+						</button>
+					</div>
+				</section>
+
+				<nav class="careermp-party-tabs">
+					<button type="button" class="careermp-party-tab-button" ng-class="{ active: isTab('party') }" ng-click="setTab('party')">Party</button>
+					<button type="button" class="careermp-party-tab-button" ng-class="{ active: isTab('dealership') }" ng-click="setTab('dealership')">Dealership</button>
+					<button type="button" class="careermp-party-tab-button" ng-class="{ active: isTab('loaners') }" ng-click="setTab('loaners')">Loaners</button>
+				</nav>
+
+				<div class="careermp-party-tab-pane" ng-if="isTab('party')">
+					<section class="careermp-party-card" ng-if="party">
+						<div class="careermp-party-card-title">Party Members</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Player</th>
+									<th>Status</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="member in party.members track by member.key">
+									<td>
+										{{ member.name }}
+										<span class="tag owner" ng-if="member.isOwner">Owner</span>
+										<span class="tag self" ng-if="member.isSelf">You</span>
+									</td>
+									<td>
+										<span class="tag online" ng-if="member.online">Online</span>
+										<span class="tag offline" ng-if="!member.online">Offline</span>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card" ng-if="invites.length">
+						<div class="careermp-party-card-title">Pending Invites</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>From</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="invite in invites track by invite.partyId">
+									<td>{{ invite.fromName }}</td>
+									<td>
+										<button type="button" ng-click="acceptInvite(invite.fromName)">Accept</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card" ng-if="party">
+						<div class="careermp-party-card-title">Borrowed Vehicles</div>
+						<div class="careermp-party-card-subtitle">Vehicles currently shared by other members of your party. This is separate from the timed key system.</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Owner</th>
+									<th>Access</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="vehicle in sharedVehicles.borrowed track by vehicle.key">
+									<td>
+										{{ vehicle.vehicleName }}
+										<span class="tag subtle" ng-if="vehicle.model">{{ vehicle.model }}</span>
+									</td>
+									<td>{{ vehicle.ownerName }}</td>
+									<td><span class="tag borrowed">Borrowed</span></td>
+								</tr>
+								<tr ng-if="!sharedVehicles.borrowed.length">
+									<td colspan="3">No party members are sharing vehicles yet.</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card">
+						<div class="careermp-party-card-title">Online Players</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Player</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="player in onlinePlayers track by player.id">
+									<td>
+										{{ getDisplayName(player) }}
+										<span class="tag self" ng-if="player.isSelf">You</span>
+										<span class="tag member" ng-if="isCurrentMember(player)">Member</span>
+									</td>
+									<td>
+										<button type="button" ng-disabled="!canInvite(player)" ng-click="invitePlayer(player)">
+											Invite
+										</button>
+									</td>
+								</tr>
+								<tr ng-if="!onlinePlayers.length">
+									<td colspan="2">No players found.</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				</div>
+
+				<div class="careermp-party-tab-pane" ng-if="isTab('dealership')">
+					<section class="careermp-party-card" ng-if="ownedVehicles.length">
+						<div class="careermp-party-card-title">Your Vehicles</div>
+						<div class="careermp-party-card-subtitle">Manage your stock here: share with party members, prepare cars for temporary keys, and list them in your own dealership.</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Status</th>
+									<th>Party</th>
+									<th>Dealership</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="vehicle in ownedVehicles track by vehicle.inventoryId">
+									<td>
+										{{ vehicle.vehicleName }}
+										<span class="tag subtle" ng-if="vehicle.model">{{ vehicle.model }}</span>
+										<div class="careermp-party-mini-note">{{ formatMoney(vehicle.marketValue) }} est.</div>
+									</td>
+									<td>
+										<span class="tag self" ng-if="vehicle.isCurrent">Current</span>
+										<span class="tag warning" ng-if="vehicle.needsRepair">Needs Repair</span>
+										<span class="tag shared" ng-if="vehicle.isSharedWithParty">Shared</span>
+										<span class="tag listed" ng-if="vehicle.isListedForSale">Listed</span>
+										<span class="tag loaned" ng-if="vehicle.isLoanedOut">Loaned Out</span>
+										<div class="careermp-party-mini-note" ng-if="vehicle.isLoanedOut">To {{ vehicle.loanBorrowerName }} for {{ formatRemaining(vehicle.loanSecondsRemaining) }}</div>
+										<span class="tag offline" ng-if="!vehicle.isCurrent && !vehicle.needsRepair && !vehicle.isSharedWithParty && !vehicle.isListedForSale && !vehicle.isLoanedOut">Private</span>
+									</td>
+									<td class="careermp-party-action-stack">
+										<button type="button" ng-if="!vehicle.isSharedWithParty" ng-disabled="!canShareVehicle(vehicle)" ng-click="shareVehicle(vehicle)">
+											Share
+										</button>
+										<button type="button" class="danger" ng-if="vehicle.isSharedWithParty" ng-disabled="!canRevokeVehicle(vehicle)" ng-click="revokeVehicle(vehicle)">
+											Revoke
+										</button>
+									</td>
+									<td class="careermp-party-action-stack">
+										<div class="careermp-party-inline-field" ng-if="!vehicle.isListedForSale">
+											<input type="number" min="1" step="1" ng-model="vehicle.askingPriceInput" ng-focus="engageFocus()" ng-blur="releaseFocus()">
+										</div>
+										<div class="careermp-party-inline-field" ng-if="vehicle.isListedForSale">
+											<span class="tag listed">{{ formatMoney(vehicle.askingPrice) }}</span>
+										</div>
+										<button type="button" ng-if="!vehicle.isListedForSale" ng-disabled="!canListVehicle(vehicle)" ng-click="listVehicle(vehicle)">
+											List
+										</button>
+										<button type="button" class="danger" ng-if="vehicle.isListedForSale" ng-disabled="!canDelistVehicle(vehicle)" ng-click="delistListing({ listingId: vehicle.listingId })">
+											Delist
+										</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card" ng-if="marketplace.myListings.length">
+						<div class="careermp-party-card-title">Your Dealership</div>
+						<div class="careermp-party-card-subtitle">These are the cars you currently have announced for sale to the server.</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Price</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="listing in marketplace.myListings track by listing.listingId">
+									<td>
+										{{ listing.vehicleName }}
+										<span class="tag subtle" ng-if="listing.model">{{ listing.model }}</span>
+									</td>
+									<td>{{ formatMoney(listing.askingPrice) }}</td>
+									<td>
+										<button type="button" class="danger" ng-click="delistListing(listing)">Delist</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card">
+						<div class="careermp-party-card-title">Marketplace Listings</div>
+						<div class="careermp-party-card-subtitle">Browse vehicles listed by other players and buy them directly from this dealership tab.</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Seller</th>
+									<th>Price</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="listing in marketplace.publicListings track by listing.listingId">
+									<td>
+										{{ listing.vehicleName }}
+										<span class="tag subtle" ng-if="listing.model">{{ listing.model }}</span>
+									</td>
+									<td>{{ listing.sellerName }}</td>
+									<td>{{ formatMoney(listing.askingPrice) }}</td>
+									<td>
+										<button type="button" ng-click="buyListing(listing)">Buy</button>
+									</td>
+								</tr>
+								<tr ng-if="!marketplace.publicListings.length">
+									<td colspan="4">No vehicles are currently listed by other players.</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				</div>
+
+				<div class="careermp-party-tab-pane" ng-if="isTab('loaners')">
+					<section class="careermp-party-card">
+						<div class="careermp-party-card-title">Temporary Keys</div>
+						<div class="careermp-party-card-subtitle">Lend one of your vehicles to another online player for a limited time. The borrowed vehicle is removed automatically when it expires, is returned, or is revoked.</div>
+						<div class="careermp-party-form-grid">
+							<div class="careermp-party-inline-field">
+								<select ng-model="loanDraft.inventoryId" ng-focus="engageFocus()" ng-blur="releaseFocus()">
+									<option value="" disabled>Select vehicle</option>
+									<option ng-repeat="vehicle in grantableLoanVehicles() track by vehicle.inventoryId" value="{{ vehicle.inventoryId }}">
+										{{ vehicle.vehicleName }}
+									</option>
+								</select>
+							</div>
+							<div class="careermp-party-inline-field">
+								<select ng-model="loanDraft.borrowerName" ng-focus="engageFocus()" ng-blur="releaseFocus()">
+									<option value="" disabled>Select player</option>
+									<option ng-repeat="player in loanEligiblePlayers() track by player.id" value="{{ player.name }}">
+										{{ getDisplayName(player) }}
+									</option>
+								</select>
+							</div>
+							<div class="careermp-party-inline-field">
+								<input type="number" min="1" step="1" ng-model="loanDraft.durationMinutes" ng-focus="engageFocus()" ng-blur="releaseFocus()">
+							</div>
+							<button type="button" ng-disabled="!canGrantLoan()" ng-click="grantLoan()">Grant Keys</button>
+						</div>
+						<div class="careermp-party-mini-note">Vehicles currently listed in your dealership or already loaned out are excluded from this form.</div>
+					</section>
+
+					<section class="careermp-party-card" ng-if="loaners.given.length">
+						<div class="careermp-party-card-title">Loans You Gave</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Borrower</th>
+									<th>Time Left</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="loan in loaners.given track by loan.loanId">
+									<td>
+										{{ loan.vehicleName }}
+										<span class="tag subtle" ng-if="loan.model">{{ loan.model }}</span>
+									</td>
+									<td>
+										{{ loan.borrowerName }}
+										<span class="tag online" ng-if="loan.borrowerOnline">Online</span>
+										<span class="tag offline" ng-if="!loan.borrowerOnline">Offline</span>
+									</td>
+									<td>{{ formatRemaining(loan.secondsRemaining) }}</td>
+									<td>
+										<button type="button" class="danger" ng-click="revokeLoan(loan)">Revoke</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+
+					<section class="careermp-party-card" ng-if="loaners.received.length">
+						<div class="careermp-party-card-title">Loans You Received</div>
+						<table class="careermp-party-table">
+							<thead>
+								<tr>
+									<th>Vehicle</th>
+									<th>Owner</th>
+									<th>Time Left</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr ng-repeat="loan in loaners.received track by loan.loanId">
+									<td>
+										{{ loan.vehicleName }}
+										<span class="tag subtle" ng-if="loan.model">{{ loan.model }}</span>
+									</td>
+									<td>
+										{{ loan.ownerName }}
+										<span class="tag online" ng-if="loan.ownerOnline">Online</span>
+										<span class="tag offline" ng-if="!loan.ownerOnline">Offline</span>
+									</td>
+									<td>{{ formatRemaining(loan.secondsRemaining) }}</td>
+									<td>
+										<button type="button" ng-click="returnLoan(loan)">Return</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				</div>
+			</section>
+		</div>
+		<button class="careermp-party-tab" id="party-show-button" ng-click="togglePanel()">P</button>
+	</div>
+</div>
