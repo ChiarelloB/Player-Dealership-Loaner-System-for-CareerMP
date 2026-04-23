@@ -1,4 +1,5 @@
-dist/
+dist/*
+!dist/CareerMPPartySharedVehicles.zip
 __pycache__/
 *.pyc
 Resources/Server/CareerMPPartySharedVehicles/data/state.json
