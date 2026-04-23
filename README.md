@@ -116,6 +116,11 @@ Resources/Server/CareerMPPartySharedVehicles/
 - dealership and loaner features are the primary focus
 - party tools are kept as a supporting trust/social layer rather than the main feature
 
+## Credits
+
+- the in-game UI visual direction for this project was inspired by the `Banking UI App` mod by `@deadendreece`
+- this project builds its own dealership, loaner, and party workflow on top of `CareerMP`, while openly crediting that UI inspiration
+
 ## Status
 
 **Beta**
