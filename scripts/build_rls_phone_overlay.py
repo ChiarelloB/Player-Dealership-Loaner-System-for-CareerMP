@@ -10,7 +10,7 @@ INDEX_PATH = "ui/ui-vue/dist/index.js"
 LAYOUT_PATH = "lua/ge/extensions/ui/phone/layout.lua"
 TILE_SOURCE_PATH = "ui/entrypoints/main/tiles/marketplace.png"
 TILE_OUTPUT_PATH = "ui/entrypoints/main/tiles/player-dealership.png"
-DEFAULT_OUTPUT_NAME = "CareerMPPartySharedVehiclesRLSPhoneOverlay.zip"
+DEFAULT_OUTPUT_NAME = "zz_CareerMPPartySharedVehiclesRLSPhoneOverlay.zip"
 
 
 PLAYER_DEALERSHIP_MANIFEST = (
@@ -73,7 +73,10 @@ def patch_layout(layout_lua: str) -> str:
 
     migration_block = (
         '  if version < 3 then\n'
-        '    insertMissingApp(normalized, "player-dealership", "marketplace")\n'
+        '    normalized.version = LAYOUT_VERSION\n'
+        '    changed = true\n'
+        '  end\n\n'
+        '  if insertMissingApp(normalized, "player-dealership", "marketplace") then\n'
         '    normalized.version = LAYOUT_VERSION\n'
         '    changed = true\n'
         '  end\n\n'

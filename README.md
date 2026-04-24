@@ -73,7 +73,7 @@ py .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_car
 Install the generated overlay on the BeamMP server:
 
 ```text
-Resources/Client/CareerMPPartySharedVehiclesRLSPhoneOverlay.zip
+Resources/Client/zz_CareerMPPartySharedVehiclesRLSPhoneOverlay.zip
 ```
 
 ## Current Scope
