@@ -434,6 +434,12 @@ app.controller('CareerMPPartyController', ['$scope', '$interval', function ($sco
 		setTimeout(refreshState, 250);
 	};
 
+	$scope.$on('CareerMPPartyOpenFromPhone', function (_event, tabName) {
+		$scope.setTab(tabName || 'dealership');
+		showPanel();
+		$scope.$evalAsync();
+	});
+
 	const refreshTimer = $interval(refreshState, 1000);
 	const dockTimer = $interval(updateDockOrientation, 250);
 	refreshState();

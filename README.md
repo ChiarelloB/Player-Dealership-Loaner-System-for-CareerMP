@@ -52,6 +52,30 @@ The mod ships with a dedicated in-game UI app:
 - `Dealership` tab for inventory management, listings, and marketplace browsing
 - `Loaners` tab for timed temporary key grants and borrowed vehicle tracking
 
+### Optional RLS Phone Integration
+
+RLS uses its own Vue phone bundle instead of the standard BeamNG UI app layout system, so the phone shortcut is generated as a local overlay instead of committing redistributed RLS files to this repository.
+
+The overlay adds a `Player Dealer` tile to the RLS phone. Selecting it closes the phone and opens this mod's existing UI directly on the `Dealership` tab.
+
+Build the overlay from your local RLS compatible zip:
+
+```powershell
+python .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --out-dir .\dist
+```
+
+If `python` does not work on your system:
+
+```powershell
+py .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --out-dir .\dist
+```
+
+Install the generated overlay on the BeamMP server:
+
+```text
+Resources/Client/CareerMPPartySharedVehiclesRLSPhoneOverlay.zip
+```
+
 ## Current Scope
 
 This is a working beta focused on the systems below:
@@ -91,6 +115,16 @@ The generated client archive will be created in:
 ```text
 dist/CareerMPPartySharedVehicles.zip
 ```
+
+## Recent Fixes
+
+- fixed RLS transferred vehicles importing with missing insurance data
+- fixed transferred vehicles showing `Value: 0`, `Insurance: n/a`, and `Not insured`
+- fixed the repair screen Lua crash caused by missing RLS insurance inventory records
+- added automatic repair for already affected transferred vehicles when the world loads
+- stopped injecting the UI app into FRE/freeroam/mission layouts that could block RLSMP event staging text
+- added cleanup for older layout injections from earlier builds
+- added the optional RLS phone overlay builder
 
 ## Install
 

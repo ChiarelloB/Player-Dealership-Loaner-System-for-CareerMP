@@ -933,6 +933,24 @@ local function getUiState()
     }
 end
 
+local function openFromPhone(tabName)
+    local requestedTab = tabName or "dealership"
+
+    if gameplay_phone and gameplay_phone.isPhoneOpen and gameplay_phone.togglePhone then
+        local ok, phoneOpen = pcall(gameplay_phone.isPhoneOpen)
+        if ok and phoneOpen then
+            gameplay_phone.togglePhone()
+        else
+            guihooks.trigger("closePhone")
+        end
+    else
+        guihooks.trigger("closePhone")
+    end
+
+    guihooks.trigger("CareerMPPartyOpenFromPhone", requestedTab)
+    requestState()
+end
+
 local function onGameStateUpdate(gameState)
     checkUIApps(gameState)
 end
@@ -987,6 +1005,7 @@ M.returnLoan = returnLoan
 M.printState = printState
 M.help = help
 M.getUiState = getUiState
+M.openFromPhone = openFromPhone
 
 M.onGameStateUpdate = onGameStateUpdate
 M.onWorldReadyState = onWorldReadyState
