@@ -27,6 +27,7 @@ local state = {
 
 local syncedOnce = false
 local layoutRefreshRequested = false
+local legacyLayoutCleanupDone = false
 local processedMarketTransactions = {}
 local reconcileLoanerVehicles
 
@@ -38,21 +39,21 @@ local userMissionAppLayoutDirectory = "settings/ui_apps/layouts/mission/"
 local defaultLayouts = {
     career = { filename = "career" },
     careerBigMap = { filename = "careerBigMap" },
-    careerMission = { filename = "careerMission" },
-    careerMissionEnd = { filename = "careerMissionEnd" },
     careerPause = { filename = "careerPause" },
-    careerRefuel = { filename = "careerRefuel" },
-    freeroam = { filename = "freeroam" },
     garage = { filename = "garage" },
     garage_v2 = { filename = "garage_v2" },
-    radial = { filename = "radial" },
-    unicycle = { filename = "unicycle" }
 }
 
-local missionLayouts = {
-    basicMissionLayout = { filename = "basicMission" },
-    dragMission = { filename = "dragMission" },
-    driftMission = { filename = "driftMission" }
+local legacyInjectedLayouts = {
+    { dir = userDefaultAppLayoutDirectory, filename = "careerMission" },
+    { dir = userDefaultAppLayoutDirectory, filename = "careerMissionEnd" },
+    { dir = userDefaultAppLayoutDirectory, filename = "careerRefuel" },
+    { dir = userDefaultAppLayoutDirectory, filename = "freeroam" },
+    { dir = userDefaultAppLayoutDirectory, filename = "radial" },
+    { dir = userDefaultAppLayoutDirectory, filename = "unicycle" },
+    { dir = userMissionAppLayoutDirectory, filename = "basicMission" },
+    { dir = userMissionAppLayoutDirectory, filename = "dragMission" },
+    { dir = userMissionAppLayoutDirectory, filename = "driftMission" },
 }
 
 local defaultPartyApp = {
@@ -267,6 +268,96 @@ local function getNextInventoryId()
     return nextInventoryId
 end
 
+local function getVehicleValueFallback(inventoryId, vehicleInfo)
+    local value = 0
+    if career_modules_valueCalculator and career_modules_valueCalculator.getInventoryVehicleValue then
+        local ok, calculatedValue = pcall(career_modules_valueCalculator.getInventoryVehicleValue, inventoryId)
+        if ok then
+            value = tonumber(calculatedValue) or 0
+        end
+    end
+
+    if value <= 0 and type(vehicleInfo) == "table" then
+        value = tonumber(vehicleInfo.Value)
+            or tonumber(vehicleInfo.value)
+            or tonumber(vehicleInfo.playerDealershipMarketValue)
+            or ((tonumber(vehicleInfo.configBaseValue) or 0) / 3)
+            or 0
+    end
+
+    return math.max(1000, math.floor(value))
+end
+
+local function normalizeTransferredVehicleData(inventoryId, vehicleInfo)
+    if type(vehicleInfo) ~= "table" then
+        return nil
+    end
+
+    local marketValue = getVehicleValueFallback(inventoryId, vehicleInfo)
+    vehicleInfo.playerDealershipMarketValue = marketValue
+    vehicleInfo.configBaseValue = math.max(tonumber(vehicleInfo.configBaseValue) or 0, marketValue * 3)
+    vehicleInfo.Value = tonumber(vehicleInfo.Value) or marketValue
+    vehicleInfo.value = tonumber(vehicleInfo.value) or marketValue
+    vehicleInfo.dirtyDate = vehicleInfo.dirtyDate or ((os and os.time) and os.time() or 0)
+    return vehicleInfo
+end
+
+local function ensureRlsInsuranceRecord(inventoryId, vehicleInfo)
+    if not career_modules_insurance_insurance or not career_modules_insurance_insurance.getInvVehs then
+        return false
+    end
+
+    local inventoryKey = tonumber(inventoryId) or inventoryId
+    local vehicles = getInventoryVehicles()
+    local inventoryVehicle = vehicleInfo or vehicles[inventoryKey] or vehicles[tostring(inventoryKey)]
+    if type(inventoryVehicle) ~= "table" then
+        return false
+    end
+
+    local invVehs = career_modules_insurance_insurance.getInvVehs() or {}
+    if invVehs[inventoryKey] and invVehs[inventoryKey].initialValue then
+        return true
+    end
+
+    normalizeTransferredVehicleData(inventoryKey, inventoryVehicle)
+
+    if career_modules_insurance_insurance.onVehicleAddedToInventory then
+        local ok, err = pcall(career_modules_insurance_insurance.onVehicleAddedToInventory, {
+            inventoryId = inventoryKey,
+            purchaseData = { insuranceId = -1 },
+        })
+        if not ok then
+            log("W", "careerMPPartySharedVehicles", "Failed to create RLS insurance record for inventory vehicle " .. tostring(inventoryKey) .. ": " .. tostring(err))
+            return false
+        end
+    else
+        return false
+    end
+
+    if career_saveSystem and career_saveSystem.saveCurrent then
+        career_saveSystem.saveCurrent()
+    end
+
+    return true
+end
+
+local function repairMissingRlsInsuranceRecords()
+    if not career_modules_inventory or not career_modules_inventory.getVehicles then
+        return
+    end
+
+    local repaired = false
+    for inventoryId, vehicleInfo in pairs(career_modules_inventory.getVehicles() or {}) do
+        if type(vehicleInfo) == "table" and not isPlayerLoanVehicle(vehicleInfo) then
+            repaired = ensureRlsInsuranceRecord(inventoryId, vehicleInfo) or repaired
+        end
+    end
+
+    if repaired and career_modules_inventory.sendDataToUi then
+        career_modules_inventory.sendDataToUi()
+    end
+end
+
 local function snapshotVehicleForTransfer(inventoryId)
     local vehicles = career_modules_inventory and career_modules_inventory.getVehicles and career_modules_inventory.getVehicles() or {}
     local vehicleInfo = vehicles[tonumber(inventoryId)] or vehicles[inventoryId]
@@ -281,6 +372,7 @@ local function snapshotVehicleForTransfer(inventoryId)
     vehicleSnapshot.loanType = nil
     vehicleSnapshot.owningOrganization = nil
     vehicleSnapshot.listedForSale = nil
+    normalizeTransferredVehicleData(inventoryId, vehicleSnapshot)
     return vehicleSnapshot
 end
 
@@ -302,8 +394,10 @@ local function importMarketplaceVehicle(vehicleData)
     vehicleCopy.loanType = nil
     vehicleCopy.owningOrganization = nil
     vehicleCopy.listedForSale = nil
+    normalizeTransferredVehicleData(newInventoryId, vehicleCopy)
 
     vehicles[newInventoryId] = vehicleCopy
+    ensureRlsInsuranceRecord(newInventoryId, vehicleCopy)
 
     if career_modules_inventory.getFavoriteVehicle and not career_modules_inventory.getFavoriteVehicle() and career_modules_inventory.setFavoriteVehicle then
         career_modules_inventory.setFavoriteVehicle(newInventoryId)
@@ -344,8 +438,10 @@ local function importLoanVehicle(loan)
     vehicleCopy.loanBorrowerName = tostring(state.selfName or "")
     vehicleCopy.niceName = tostring(loan.vehicleName or vehicleCopy.niceName or vehicleCopy.model or ("Vehicle " .. tostring(newInventoryId)))
     vehicleCopy.model = vehicleCopy.model or loan.model or ""
+    normalizeTransferredVehicleData(newInventoryId, vehicleCopy)
 
     vehicles[newInventoryId] = vehicleCopy
+    ensureRlsInsuranceRecord(newInventoryId, vehicleCopy)
 
     if career_modules_inventory.sendDataToUi then
         career_modules_inventory.sendDataToUi()
@@ -409,10 +505,8 @@ local function buildOwnedVehicles()
 
     for inventoryId, vehicleInfo in pairs(vehicles) do
         if type(vehicleInfo) == "table" and not isPlayerLoanVehicle(vehicleInfo) then
-            local marketValue = career_modules_valueCalculator
-                and career_modules_valueCalculator.getInventoryVehicleValue
-                and math.floor(tonumber(career_modules_valueCalculator.getInventoryVehicleValue(inventoryId)) or 0)
-                or 0
+            ensureRlsInsuranceRecord(inventoryId, vehicleInfo)
+            local marketValue = getVehicleValueFallback(inventoryId, vehicleInfo)
             local listing = marketplaceLookup[tostring(inventoryId)]
             local activeLoan = givenLoanLookup[tostring(inventoryId)]
             table.insert(ownedVehicles, {
@@ -754,6 +848,40 @@ local function ensureApp(layout, appData)
     return removed
 end
 
+local function removePartyApp(layout)
+    if type(layout) ~= "table" or type(layout.apps) ~= "table" then
+        return false
+    end
+
+    local removed = false
+    for i = #layout.apps, 1, -1 do
+        local app = layout.apps[i]
+        if type(app) == "table" and app.appName == defaultPartyApp.appName then
+            table.remove(layout.apps, i)
+            removed = true
+        end
+    end
+
+    return removed
+end
+
+local function cleanupLegacyInjectedLayouts()
+    if legacyLayoutCleanupDone then
+        return
+    end
+    legacyLayoutCleanupDone = true
+
+    for _, entry in ipairs(legacyInjectedLayouts) do
+        local path = entry.dir .. entry.filename .. ".uilayout.json"
+        local layout = jsonReadFile(path)
+        if removePartyApp(layout) then
+            jsonWriteFile(path, layout, 1)
+            layoutRefreshRequested = true
+            log("I", "careerMPPartySharedVehicles", "Removed legacy Party app injection from " .. path)
+        end
+    end
+end
+
 local function loadLayout(customDir, defaultDir, filename)
     local custom = jsonReadFile(customDir .. filename .. ".uilayout.json")
     if custom then
@@ -767,17 +895,19 @@ local function loadLayout(customDir, defaultDir, filename)
 end
 
 local function checkUIApps(gameState)
+    cleanupLegacyInjectedLayouts()
+
     if not gameState or not gameState.appLayout then
         return
     end
 
-    local layoutInfo = defaultLayouts[gameState.appLayout] or missionLayouts[gameState.appLayout]
+    local layoutInfo = defaultLayouts[gameState.appLayout]
     if not layoutInfo then
         return
     end
 
-    local customDir = defaultLayouts[gameState.appLayout] and userDefaultAppLayoutDirectory or userMissionAppLayoutDirectory
-    local defaultDir = defaultLayouts[gameState.appLayout] and defaultAppLayoutDirectory or missionAppLayoutDirectory
+    local customDir = userDefaultAppLayoutDirectory
+    local defaultDir = defaultAppLayoutDirectory
     local layout, saveDir = loadLayout(customDir, defaultDir, layoutInfo.filename)
     if not layout then
         return
@@ -809,6 +939,7 @@ end
 
 local function onWorldReadyState(worldState)
     if worldState == 2 then
+        repairMissingRlsInsuranceRecords()
         requestState()
     end
 end
@@ -821,6 +952,7 @@ local function onUpdate(dtReal, dtSim, dtRaw)
 end
 
 local function onExtensionLoaded()
+    cleanupLegacyInjectedLayouts()
     AddEventHandler("careerMPPartySharedVehiclesRxState", rxState)
     AddEventHandler("careerMPPartySharedVehiclesRxNotice", rxNotice)
     AddEventHandler("careerMPPartySharedVehiclesRxError", rxError)
@@ -829,6 +961,7 @@ local function onExtensionLoaded()
     AddEventHandler("careerMPPartyDealershipFinalizePurchase", rxFinalizePurchase)
     AddEventHandler("careerMPPartyDealershipFinalizeSale", rxFinalizeSale)
     if worldReadyState == 2 then
+        repairMissingRlsInsuranceRecords()
         requestState()
     end
     log("I", "careerMPPartySharedVehicles", "Party client module loaded")
