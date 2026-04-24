@@ -54,26 +54,26 @@ The mod ships with a dedicated in-game UI app:
 
 ### Optional RLS Phone Integration
 
-RLS uses its own Vue phone bundle instead of the standard BeamNG UI app layout system, so the phone shortcut is generated as a local overlay instead of committing redistributed RLS files to this repository.
+RLS uses its own Vue phone bundle instead of the standard BeamNG UI app layout system, so the phone integration is generated locally from your own RLS compatible zip instead of committing redistributed RLS files to this repository.
 
-The overlay adds a `Player Dealer` tile to the RLS phone. Selecting it closes the phone and opens this mod's existing UI directly on the `Dealership` tab.
+The generated phone build adds a native `Player Dealer` app inside the RLS phone. It renders marketplace listings, owned vehicles, and your active dealership listings directly inside the phone UI.
 
-Build the overlay from your local RLS compatible zip:
+Build a patched RLS compatible zip from your local RLS compatible zip:
 
 ```powershell
-python .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --out-dir .\dist
+python .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --full-rls-out ".\dist\rls_career_overhaul_2.6.5.1_careermp_compatible_phone.zip"
 ```
 
 If `python` does not work on your system:
 
 ```powershell
-py .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --out-dir .\dist
+py .\scripts\build_rls_phone_overlay.py --rls-compatible-zip "C:\Path\To\rls_career_overhaul_2.6.5.1_careermp_compatible.zip" --full-rls-out ".\dist\rls_career_overhaul_2.6.5.1_careermp_compatible_phone.zip"
 ```
 
-Install the generated overlay on the BeamMP server:
+Install the generated patched RLS zip on the BeamMP server in place of the unpatched RLS compatible zip:
 
 ```text
-Resources/Client/zz_CareerMPPartySharedVehiclesRLSPhoneOverlay.zip
+Resources/Client/rls_career_overhaul_2.6.5.1_careermp_compatible.zip
 ```
 
 ## Current Scope
@@ -124,7 +124,7 @@ dist/CareerMPPartySharedVehicles.zip
 - added automatic repair for already affected transferred vehicles when the world loads
 - stopped injecting the UI app into FRE/freeroam/mission layouts that could block RLSMP event staging text
 - added cleanup for older layout injections from earlier builds
-- added the optional RLS phone overlay builder
+- added the optional native RLS phone app builder
 
 ## Install
 
